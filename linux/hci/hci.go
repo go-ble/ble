@@ -442,7 +442,11 @@ func (h *HCI) handleLEConnectionComplete(b []byte) error {
 	h.muConns.Unlock()
 	if e.Role() == roleMaster {
 		if e.Status() == 0x00 {
-			h.chMasterConn <- c
+			select {
+			case h.chMasterConn <- c:
+			default:
+				go c.Close()
+			}
 			return nil
 		}
 		if ErrCommand(e.Status()) == ErrConnID {
