@@ -208,7 +208,13 @@ func (p *Client) DiscoverDescriptors(filter []ble.UUID, c *ble.Characteristic) (
 func (p *Client) ReadCharacteristic(c *ble.Characteristic) ([]byte, error) {
 	p.Lock()
 	defer p.Unlock()
-	return p.ac.Read(c.ValueHandle)
+	val, err := p.ac.Read(c.ValueHandle)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Value = val
+	return val, nil
 }
 
 // ReadLongCharacteristic reads a characteristic value which is longer than the MTU. [Vol 3, Part G, 4.8.3]
@@ -231,6 +237,8 @@ func (p *Client) ReadLongCharacteristic(c *ble.Characteristic) ([]byte, error) {
 		}
 		buffer = append(buffer, read...)
 	}
+
+	c.Value = buffer
 	return buffer, nil
 }
 
@@ -248,7 +256,13 @@ func (p *Client) WriteCharacteristic(c *ble.Characteristic, v []byte, noRsp bool
 func (p *Client) ReadDescriptor(d *ble.Descriptor) ([]byte, error) {
 	p.Lock()
 	defer p.Unlock()
-	return p.ac.Read(d.Handle)
+	val, err := p.ac.Read(d.Handle)
+	if err != nil {
+		return nil, err
+	}
+
+	d.Value = val
+	return val, nil
 }
 
 // WriteDescriptor writes a characteristic descriptor to a server. [Vol 3, Part G, 4.12.3]

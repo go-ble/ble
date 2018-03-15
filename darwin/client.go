@@ -176,6 +176,7 @@ func (cln *Client) ReadCharacteristic(c *ble.Characteristic) ([]byte, error) {
 	if rsp.err() != nil {
 		return nil, rsp.err()
 	}
+	c.Value = rsp.data()
 	return rsp.data(), nil
 }
 
@@ -215,6 +216,7 @@ func (cln *Client) ReadDescriptor(d *ble.Descriptor) ([]byte, error) {
 	if err := rsp.err(); err != nil {
 		return nil, err
 	}
+	d.Value = rsp.data()
 	return rsp.data(), nil
 }
 
