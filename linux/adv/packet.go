@@ -185,6 +185,47 @@ func (p *Packet) Field(typ byte) []byte {
 	return nil
 }
 
+func (p *Packet) getUUIDsByType(typ byte, u []ble.UUID, w int) []ble.UUID {
+	pos := 0
+	var b []byte
+	for pos < len(p.b) {
+		if b, pos = p.fieldPos(typ, pos); b != nil {
+			u = uuidList(u, b, w)
+		}
+	}
+	return u
+}
+
+func (p *Packet) fieldPos(typ byte, offset int) ([]byte, int) {
+	if offset >= len(p.b) {
+		return nil, len(p.b)
+	}
+
+	b := p.b[offset:]
+	pos := offset
+
+	if len(b) < 2 {
+		return nil, pos + len(b)
+	}
+
+	for len(b) > 0 {
+		l, t := b[0], b[1]
+		if int(l) < 1 || len(b) < int(1+l) {
+			return nil, pos
+		}
+		if t == typ {
+			r := b[2 : 2+l-1]
+			return r, pos + 1 + int(l)
+		}
+		b = b[1+l:]
+		pos += 1 + int(l)
+		if len(b) < 2 {
+			break
+		}
+	}
+	return nil, pos
+}
+
 // Flags returns the flags of the packet.
 func (p *Packet) Flags() (flags byte, present bool) {
 	b := p.Field(flags)
@@ -214,24 +255,12 @@ func (p *Packet) TxPower() (power int, present bool) {
 // UUIDs returns a list of service UUIDs.
 func (p *Packet) UUIDs() []ble.UUID {
 	var u []ble.UUID
-	if b := p.Field(someUUID16); b != nil {
-		u = uuidList(u, b, 2)
-	}
-	if b := p.Field(allUUID16); b != nil {
-		u = uuidList(u, b, 2)
-	}
-	if b := p.Field(someUUID32); b != nil {
-		u = uuidList(u, b, 4)
-	}
-	if b := p.Field(allUUID32); b != nil {
-		u = uuidList(u, b, 4)
-	}
-	if b := p.Field(someUUID128); b != nil {
-		u = uuidList(u, b, 16)
-	}
-	if b := p.Field(allUUID128); b != nil {
-		u = uuidList(u, b, 16)
-	}
+	u = p.getUUIDsByType(someUUID16, u, 2)
+	u = p.getUUIDsByType(allUUID16, u, 2)
+	u = p.getUUIDsByType(someUUID32, u, 4)
+	u = p.getUUIDsByType(allUUID32, u, 4)
+	u = p.getUUIDsByType(someUUID128, u, 16)
+	u = p.getUUIDsByType(allUUID128, u, 16)
 	return u
 }
 
