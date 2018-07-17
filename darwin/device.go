@@ -489,10 +489,15 @@ func (d *Device) HandleXpcEvent(event xpc.Dict, err error) {
 		d.conn(args).unsubscribed(d.chars[args.attributeID()])
 
 	case evtPeripheralConnected:
-		d.chConn <- d.conn(args)
+		c := d.conn(args)
+		if !c.isConnected {
+			c.isConnected = true
+			d.chConn <- c
+		}
 
 	case evtPeripheralDisconnected:
 		c := d.conn(args)
+		c.isConnected = false
 		select {
 		case c.rspc <- m:
 			// Canceled by local central synchronously
