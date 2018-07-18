@@ -320,6 +320,11 @@ func (cln *Client) Disconnected() <-chan struct{} {
 	return cln.conn.Disconnected()
 }
 
+// Conn returns the client's current connection.
+func (cln *Client) Conn() ble.Conn {
+	return cln.conn
+}
+
 type sub struct {
 	fn   ble.NotificationHandler
 	char *ble.Characteristic

@@ -371,6 +371,11 @@ func (p *Client) Disconnected() <-chan struct{} {
 	return p.conn.Disconnected()
 }
 
+// Conn returns the client's current connection.
+func (p *Client) Conn() ble.Conn {
+	return p.l2c
+}
+
 // HandleNotification ...
 func (p *Client) HandleNotification(req []byte) {
 	p.Lock()

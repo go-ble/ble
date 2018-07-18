@@ -66,4 +66,7 @@ type Client interface {
 
 	// Disconnected returns a receiving channel, which is closed when the client disconnects.
 	Disconnected() <-chan struct{}
+
+	// Conn returns the client's current connection.
+	Conn() Conn
 }

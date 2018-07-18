@@ -9,10 +9,10 @@ import (
 	"github.com/raff/goble/xpc"
 )
 
-func newConn(d *Device, a ble.Addr) *conn {
+func newConn(d *Device, a ble.Addr, rxMTU int) *conn {
 	return &conn{
 		dev:   d,
-		rxMTU: 23,
+		rxMTU: rxMTU,
 		txMTU: 23,
 		addr:  a,
 		done:  make(chan struct{}),

@@ -546,7 +546,7 @@ func (d *Device) conn(m msg) *conn {
 	d.connLock.Lock()
 	c, ok := d.conns[a.String()]
 	if !ok {
-		c = newConn(d, a)
+		c = newConn(d, a, m.attMTU())
 		d.conns[a.String()] = c
 	}
 	d.connLock.Unlock()
