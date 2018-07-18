@@ -77,7 +77,9 @@ func (c *conn) TxMTU() int {
 }
 
 func (c *conn) SetTxMTU(mtu int) {
+	c.Lock()
 	c.txMTU = mtu
+	c.Unlock()
 }
 
 func (c *conn) Read(b []byte) (int, error) {
