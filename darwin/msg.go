@@ -12,7 +12,12 @@ func (m msg) args() xpc.Dict { return xpc.Dict(m).MustGetDict("kCBMsgArgs") }
 func (m msg) advertisementData() xpc.Dict {
 	return xpc.Dict(m).MustGetDict("kCBMsgArgAdvertisementData")
 }
-func (m msg) attMTU() int          { return xpc.Dict(m).MustGetInt("kCBMsgArgATTMTU") }
+
+const macOSXDefaultMTU = 23
+
+// Uses GetInt as oppose to MustGetInt due to OSX not supporting 'kCBMsgArgATTMTU'.
+// Issue #29
+func (m msg) attMTU() int          { return xpc.Dict(m).GetInt("kCBMsgArgATTMTU", macOSXDefaultMTU) }
 func (m msg) attWrites() xpc.Array { return xpc.Dict(m).MustGetArray("kCBMsgArgATTWrites") }
 func (m msg) attributeID() int     { return xpc.Dict(m).MustGetInt("kCBMsgArgAttributeID") }
 func (m msg) characteristicHandle() int {
