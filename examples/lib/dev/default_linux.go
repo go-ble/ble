@@ -6,6 +6,6 @@ import (
 )
 
 // DefaultDevice ...
-func DefaultDevice() (d ble.Device, err error) {
-	return linux.NewDevice()
+func DefaultDevice(opts ...ble.Option) (d ble.Device, err error) {
+	return linux.NewDevice(opts...)
 }

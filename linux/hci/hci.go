@@ -35,7 +35,7 @@ type pkt struct {
 }
 
 // NewHCI returns a hci device.
-func NewHCI(opts ...Option) (*HCI, error) {
+func NewHCI(opts ...ble.Option) (*HCI, error) {
 	h := &HCI{
 		id: -1,
 
@@ -171,7 +171,7 @@ func (h *HCI) Error() error {
 }
 
 // Option sets the options specified.
-func (h *HCI) Option(opts ...Option) error {
+func (h *HCI) Option(opts ...ble.Option) error {
 	var err error
 	for _, opt := range opts {
 		err = opt(h)

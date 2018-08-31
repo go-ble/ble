@@ -37,7 +37,7 @@ type Device struct {
 }
 
 // NewDevice returns a BLE device.
-func NewDevice(opts ...Option) (*Device, error) {
+func NewDevice(opts ...ble.Option) (*Device, error) {
 	err := initXpcIDs()
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func NewDevice(opts ...Option) (*Device, error) {
 }
 
 // Option sets the options specified.
-func (d *Device) Option(opts ...Option) error {
+func (d *Device) Option(opts ...ble.Option) error {
 	var err error
 	for _, opt := range opts {
 		err = opt(d)

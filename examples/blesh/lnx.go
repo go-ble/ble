@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/go-ble/ble"
 	"github.com/go-ble/ble/linux"
-	"github.com/go-ble/ble/linux/hci"
 	"github.com/go-ble/ble/linux/hci/cmd"
 	"github.com/pkg/errors"
 )
@@ -31,7 +31,7 @@ func updateLinuxParam(d *linux.Device) error {
 		return errors.Wrap(err, "can't set scan param")
 	}
 
-	if err := d.HCI.Option(hci.OptConnParams(
+	if err := d.HCI.Option(ble.OptConnParams(
 		cmd.LECreateConnection{
 			LEScanInterval:        0x0004,    // 0x0004 - 0x4000; N * 0.625 msec
 			LEScanWindow:          0x0004,    // 0x0004 - 0x4000; N * 0.625 msec

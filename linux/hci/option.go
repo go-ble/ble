@@ -1,42 +1,42 @@
 package hci
 
 import (
+	"errors"
 	"time"
 
 	"github.com/go-ble/ble/linux/hci/cmd"
 )
 
-// An Option is a configuration function, which configures the device.
-type Option func(*HCI) error
-
-// OptDeviceID sets HCI device ID.
-func OptDeviceID(id int) Option {
-	return func(h *HCI) error {
-		h.id = id
-		return nil
-	}
+// SetDeviceID sets HCI device ID.
+func (h *HCI) SetDeviceID(id int) error {
+	h.id = id
+	return nil
 }
 
-// OptDialerTimeout sets dialing timeout for Dialer.
-func OptDialerTimeout(d time.Duration) Option {
-	return func(h *HCI) error {
-		h.dialerTmo = d
-		return nil
-	}
+// SetDialerTimeout sets dialing timeout for Dialer.
+func (h *HCI) SetDialerTimeout(d time.Duration) error {
+	h.dialerTmo = d
+	return nil
 }
 
-// OptListenerTimeout sets dialing timeout for Listener.
-func OptListenerTimeout(d time.Duration) Option {
-	return func(h *HCI) error {
-		h.listenerTmo = d
-		return nil
-	}
+// SetListenerTimeout sets dialing timeout for Listener.
+func (h *HCI) SetListenerTimeout(d time.Duration) error {
+	h.listenerTmo = d
+	return nil
 }
 
-// OptConnParams overrides default connection parameters.
-func OptConnParams(param cmd.LECreateConnection) Option {
-	return func(h *HCI) error {
-		h.params.connParams = param
-		return nil
-	}
+// SetConnParams overrides default connection parameters.
+func (h *HCI) SetConnParams(param cmd.LECreateConnection) error {
+	h.params.connParams = param
+	return nil
+}
+
+// SetPeripheralRole is not supported
+func (h *HCI) SetPeripheralRole() error {
+	return errors.New("Not supported")
+}
+
+// SetCentralRole is not supported
+func (h *HCI) SetCentralRole() error {
+	return errors.New("Not supported")
 }

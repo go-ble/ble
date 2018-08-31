@@ -1,8 +1,10 @@
 package dev
 
-import "github.com/go-ble/ble"
+import (
+	"github.com/go-ble/ble"
+)
 
 // NewDevice ...
-func NewDevice(impl string) (d ble.Device, err error) {
-	return DefaultDevice()
+func NewDevice(impl string, opts ...ble.Option) (d ble.Device, err error) {
+	return DefaultDevice(opts...)
 }
