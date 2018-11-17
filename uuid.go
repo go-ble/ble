@@ -70,7 +70,7 @@ func (u UUID) Equal(v UUID) bool {
 // Contains returns a boolean reporting whether u is in the slice s.
 func Contains(s []UUID, u UUID) bool {
 	if s == nil {
-		return true
+		return false
 	}
 
 	for _, a := range s {
