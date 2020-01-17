@@ -8,7 +8,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-ble/ble"
+	"github.com/armaanhammer/ble"
 	"github.com/pkg/errors"
 	"github.com/raff/goble/xpc"
 

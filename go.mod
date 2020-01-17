@@ -1,4 +1,4 @@
-module github.com/go-ble/ble
+module github.com/armaanhammer/ble
 
 go 1.13
 
