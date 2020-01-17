@@ -3,7 +3,7 @@ package adv
 import (
 	"encoding/binary"
 
-	"github.com/go-ble/ble"
+	"github.com/armaanhammer/ble"
 )
 
 // Packet is an implemntation of ble.AdvPacket for crafting or parsing an advertising packet or scan response.

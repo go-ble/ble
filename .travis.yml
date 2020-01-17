@@ -8,7 +8,7 @@ go:
         - 1.9
         - tip
 
-go_import_path: github.com/go-ble/ble
+go_import_path: github.com/armaanhammer/ble
 
 install:
         - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then go get ./...; fi
