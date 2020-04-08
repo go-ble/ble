@@ -158,6 +158,11 @@ func (h *HCI) Init() error {
 		return err
 	}
 
+	// check params
+	p := &h.params
+	if err = p.validate(); err != nil {
+		return err
+	}
 	h.setAllowedCommands(1)
 
 	go h.sktReadLoop()
@@ -169,9 +174,8 @@ func (h *HCI) Init() error {
 	// Pre-allocate buffers with additional head room for lower layer headers.
 	// HCI header (1 Byte) + ACL Data Header (4 bytes) + L2CAP PDU (or fragment)
 	h.pool = NewPool(1+4+h.bufSize, h.bufCnt-1)
-
-	h.Send(&h.params.advParams, nil)
-	h.Send(&h.params.scanParams, nil)
+	h.Send(&p.advParams, nil)
+	h.Send(&p.scanParams, nil)
 	return nil
 }
 

@@ -3,8 +3,9 @@ package hci
 import (
 	"errors"
 	"fmt"
-	"github.com/rigado/ble/cache"
 	"time"
+
+	"github.com/rigado/ble/cache"
 
 	"github.com/rigado/ble/linux/hci/cmd"
 )
