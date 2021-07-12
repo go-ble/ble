@@ -40,6 +40,9 @@ type Client interface {
 	// WriteCharacteristic writes a characteristic value to a server. [Vol 3, Part G, 4.9.3]
 	WriteCharacteristic(c *Characteristic, value []byte, noRsp bool) error
 
+	// WriteLongCharacteristic writes a characteristic value that is longer than the MTU to a server. [Vol 3, Part F, 3.4.6]
+	WriteLongCharacteristic(c *Characteristic, value []byte) error
+
 	// ReadDescriptor reads a characteristic descriptor from a server. [Vol 3, Part G, 4.12.1]
 	ReadDescriptor(d *Descriptor) ([]byte, error)
 

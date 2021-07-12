@@ -256,6 +256,11 @@ func (cln *Client) WriteCharacteristic(c *ble.Characteristic, b []byte, noRsp bo
 	return nil
 }
 
+// WriteLongCharacteristic writes a characteristic value that is longer than the MTU to a server. [Vol 3, Part F, 3.4.6]
+func (cln *Client) WriteLongCharacteristic(c *ble.Characteristic, b []byte) error {
+	panic("not implemented")
+}
+
 // ReadDescriptor reads a characteristic descriptor from a server. [Vol 3, Part G, 4.12.1]
 func (cln *Client) ReadDescriptor(d *ble.Descriptor) ([]byte, error) {
 	cbdsc, err := cln.pc.findCbDsc(d)

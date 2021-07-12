@@ -422,6 +422,7 @@ func (c *Client) PrepareWrite(handle uint16, offset uint16, value []byte) (uint1
 	req.SetAttributeOpcode()
 	req.SetAttributeHandle(handle)
 	req.SetValueOffset(offset)
+	req.SetPartAttributeValue(value)
 
 	b, err := c.sendReq(req)
 	if err != nil {
@@ -452,7 +453,7 @@ func (c *Client) ExecuteWrite(flags uint8) error {
 	txBuf := <-c.chTxBuf
 	defer func() { c.chTxBuf <- txBuf }()
 
-	req := ExecuteWriteRequest(txBuf[:1])
+	req := ExecuteWriteRequest(txBuf[:2])
 	req.SetAttributeOpcode()
 	req.SetFlags(flags)
 
