@@ -2,6 +2,8 @@ module github.com/go-ble/ble
 
 go 1.13
 
+replace github.com/JuulLabs-OSS/cbgo => github.com/gkuchta/cbgo v0.0.3-0.20210309070341-a5fcee8c38af
+
 require (
 	github.com/JuulLabs-OSS/cbgo v0.0.1
 	github.com/mattn/go-colorable v0.1.6 // indirect
