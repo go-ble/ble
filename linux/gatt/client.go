@@ -252,6 +252,26 @@ func (p *Client) WriteCharacteristic(c *ble.Characteristic, v []byte, noRsp bool
 	return p.ac.Write(c.ValueHandle, v)
 }
 
+// WriteLongCharacteristic writes a characteristic value that is longer than the MTU to a server. [Vol 3, Part F, 3.4.6]
+func (p *Client) WriteLongCharacteristic(c *ble.Characteristic, v []byte) error {
+	p.Lock()
+	defer p.Unlock()
+
+	offset := 0
+	prepareWriteLength := 0
+
+	for offset < len(v) {
+		prepareWriteLength = MinInt( len(v) - offset, p.conn.TxMTU()-5 )
+		value := v[offset:offset+prepareWriteLength]
+		if _, _, _, err := p.ac.PrepareWrite(c.ValueHandle, uint16(offset), value ); err != nil {
+			return err
+		}
+		offset += prepareWriteLength
+	}
+
+	return p.ac.ExecuteWrite(0x01) // flags: 0x00=cancel all, 0x01=write all
+}
+
 // ReadDescriptor reads a characteristic descriptor from a server. [Vol 3, Part G, 4.12.1]
 func (p *Client) ReadDescriptor(d *ble.Descriptor) ([]byte, error) {
 	p.Lock()
@@ -400,4 +420,11 @@ type sub struct {
 	ccc      uint16
 	nHandler ble.NotificationHandler
 	iHandler ble.NotificationHandler
+}
+
+func MinInt( a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
