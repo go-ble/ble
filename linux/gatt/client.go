@@ -231,7 +231,7 @@ func (p *Client) ReadLongCharacteristic(c *ble.Characteristic) ([]byte, error) {
 	}
 	buffer = append(buffer, read...)
 
-	for len(read) >= p.conn.TxMTU()-1 {
+	for len(read) >= p.conn.RxMTU()-1 {
 		if read, err = p.ac.ReadBlob(c.ValueHandle, uint16(len(buffer))); err != nil {
 			return nil, err
 		}
