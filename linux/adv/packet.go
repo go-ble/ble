@@ -2,7 +2,6 @@ package adv
 
 import (
 	"encoding/binary"
-
 	"github.com/go-ble/ble"
 )
 

@@ -50,6 +50,44 @@ func NewDeviceWithNameAndHandler(name string, handler ble.NotifyHandler, opts ..
 	return &Device{HCI: dev, Server: srv}, nil
 }
 
+// NewAdvertisingExtensionsDevice returns the default HCI device.
+func NewAdvertisingExtensionsDevice(opts ...ble.Option) (*Device, error) {
+	return NewAdvertisingExtensionsDeviceWithName("Gopher", opts...)
+}
+
+// NewAdvertisingExtensionsDeviceWithName returns the default HCI device.
+func NewAdvertisingExtensionsDeviceWithName(name string, opts ...ble.Option) (*Device, error) {
+	return NewAdvertisingExtensionsDeviceWithNameAndHandler(name, nil, opts...)
+}
+
+func NewAdvertisingExtensionsDeviceWithNameAndHandler(name string, handler ble.NotifyHandler, opts ...ble.Option) (*Device, error) {
+	dev, err := hci.NewHCIForAdvertisingExtensions(opts...)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't create hci")
+	}
+	if err = dev.Init(); err != nil {
+		dev.Close()
+		return nil, errors.Wrap(err, "can't init hci")
+	}
+
+	srv, err := gatt.NewServerWithNameAndHandler(name, handler)
+	if err != nil {
+		dev.Close()
+		return nil, errors.Wrap(err, "can't create server")
+	}
+
+	// mtu := ble.DefaultMTU
+	mtu := ble.MaxMTU // TODO: get this from user using Option.
+	if mtu > ble.MaxMTU {
+		dev.Close()
+		return nil, errors.Wrapf(err, "maximum ATT_MTU is %d", ble.MaxMTU)
+	}
+
+	go loop(dev, srv, mtu)
+
+	return &Device{HCI: dev, Server: srv}, nil
+}
+
 func loop(dev *hci.HCI, s *gatt.Server, mtu int) {
 	for {
 		l2c, err := dev.Accept()
@@ -103,6 +141,11 @@ func (d *Device) SetServices(svcs []*ble.Service) error {
 // Stop stops gatt server.
 func (d *Device) Stop() error {
 	return d.HCI.Close()
+}
+
+// Reset
+func (d *Device) Reset(ctx context.Context) error {
+	return d.HCI.ResetHCI()
 }
 
 func (d *Device) Advertise(ctx context.Context, adv ble.Advertisement) error {
@@ -205,6 +248,19 @@ func (d *Device) Scan(ctx context.Context, allowDup bool, h ble.AdvHandler) erro
 		return d.HCI.Error()
 	}
 	d.HCI.StopScanning()
+	return ctx.Err()
+}
+
+// ExtendedScan starts scanning. Duplicated advertisements will be filtered out if allowDup is set to false.
+func (d *Device) ExtendedScan(ctx context.Context, allowDup bool, h ble.ExtendedAdvHandler) error {
+	if err := d.HCI.SetExtendedAdvHandler(h); err != nil {
+		return err
+	}
+	if err := d.HCI.ExtendedScan(allowDup); err != nil {
+		return err
+	}
+	<-ctx.Done()
+	d.HCI.StopExtendedScan()
 	return ctx.Err()
 }
 

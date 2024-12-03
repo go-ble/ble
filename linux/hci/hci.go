@@ -63,6 +63,34 @@ func NewHCI(opts ...ble.Option) (*HCI, error) {
 	return h, nil
 }
 
+// NewHCI returns a hci device.
+func NewHCIForAdvertisingExtensions(opts ...ble.Option) (*HCI, error) {
+	h := &HCI{
+		id: -1,
+
+		chCmdPkt:  make(chan *pkt),
+		chCmdBufs: make(chan []byte, 16),
+		sent:      make(map[int]*pkt),
+		muSent:    &sync.Mutex{},
+
+		evth: map[int]handlerFn{},
+		subh: map[int]handlerFn{},
+
+		muConns:      &sync.Mutex{},
+		conns:        make(map[uint16]*Conn),
+		chMasterConn: make(chan *Conn),
+		chSlaveConn:  make(chan *Conn),
+
+		done: make(chan bool),
+	}
+	h.params.initForAdvertisingExtensions()
+	if err := h.Option(opts...); err != nil {
+		return nil, errors.Wrap(err, "can't set options")
+	}
+
+	return h, nil
+}
+
 // HCI ...
 type HCI struct {
 	sync.Mutex
@@ -101,6 +129,10 @@ type HCI struct {
 	adHist     []*Advertisement
 	adLast     int
 
+	extendedAdvHandler ble.ExtendedAdvHandler
+	extendedAdHist     []*ExtendedAdvertisingData
+	extendedAdLast     int
+
 	// Host to Controller Data Flow Control Packet-based Data flow control for LE-U [Vol 2, Part E, 4.1.1]
 	// Minimum 27 bytes. 4 bytes of L2CAP Header, and 23 bytes Payload from upper layer (ATT)
 	pool *Pool
@@ -130,6 +162,7 @@ func (h *HCI) Init() error {
 	h.evth[evt.NumberOfCompletedPacketsCode] = h.handleNumberOfCompletedPackets
 
 	h.subh[evt.LEAdvertisingReportSubCode] = h.handleLEAdvertisingReport
+	h.subh[evt.LEExtendedAdvertisingReportSubCode] = h.handleLEExtendedAdvertisingReport
 	h.subh[evt.LEConnectionCompleteSubCode] = h.handleLEConnectionComplete
 	h.subh[evt.LEConnectionUpdateCompleteSubCode] = h.handleLEConnectionUpdateComplete
 	h.subh[evt.LELongTermKeyRequestSubCode] = h.handleLELongTermKeyRequest
@@ -151,16 +184,28 @@ func (h *HCI) Init() error {
 	h.setAllowedCommands(1)
 
 	go h.sktLoop()
-	if err := h.init(); err != nil {
-		return err
+	if h.params.extendedScanParams.ScanningPHYs != 0x00 {
+		if err := h.initForAdvertisingExtensions(); err != nil {
+			return err
+		}
+	} else {
+		if err := h.init(); err != nil {
+			return err
+		}
 	}
 
 	// Pre-allocate buffers with additional head room for lower layer headers.
 	// HCI header (1 Byte) + ACL Data Header (4 bytes) + L2CAP PDU (or fragment)
 	h.pool = NewPool(1+4+h.bufSize, h.bufCnt-1)
 
-	h.Send(&h.params.advParams, nil)
-	h.Send(&h.params.scanParams, nil)
+	if h.params.extendedScanParams.ScanningPHYs != 0x00 {
+		log.Println("Enable Advertising Extensions")
+		h.Send(&h.params.leSetDefaultPHY, nil)
+		h.Send(&h.params.extendedScanParams, nil)
+	} else {
+		h.Send(&h.params.advParams, nil)
+		h.Send(&h.params.scanParams, nil)
+	}
 	return nil
 }
 
@@ -188,6 +233,10 @@ func (h *HCI) Option(opts ...ble.Option) error {
 	return err
 }
 
+func (h *HCI) ResetHCI() error {
+	return h.init()
+}
+
 func (h *HCI) init() error {
 	h.Send(&cmd.Reset{}, nil)
 
@@ -213,6 +262,7 @@ func (h *HCI) init() error {
 		h.bufSize = int(LEReadBufferSizeRP.HCLEDataPacketLength)
 	}
 
+	// TODO
 	LEReadAdvertisingChannelTxPowerRP := cmd.LEReadAdvertisingChannelTxPowerRP{}
 	h.Send(&cmd.LEReadAdvertisingChannelTxPower{}, &LEReadAdvertisingChannelTxPowerRP)
 
@@ -220,6 +270,43 @@ func (h *HCI) init() error {
 
 	LESetEventMaskRP := cmd.LESetEventMaskRP{}
 	h.Send(&cmd.LESetEventMask{LEEventMask: 0x000000000000001F}, &LESetEventMaskRP)
+
+	SetEventMaskRP := cmd.SetEventMaskRP{}
+	h.Send(&cmd.SetEventMask{EventMask: 0x3dbff807fffbffff}, &SetEventMaskRP)
+
+	WriteLEHostSupportRP := cmd.WriteLEHostSupportRP{}
+	h.Send(&cmd.WriteLEHostSupport{LESupportedHost: 1, SimultaneousLEHost: 0}, &WriteLEHostSupportRP)
+
+	return h.err
+}
+
+func (h *HCI) initForAdvertisingExtensions() error {
+	h.Send(&cmd.Reset{}, nil)
+
+	ReadBDADDRRP := cmd.ReadBDADDRRP{}
+	h.Send(&cmd.ReadBDADDR{}, &ReadBDADDRRP)
+
+	a := ReadBDADDRRP.BDADDR
+	h.addr = net.HardwareAddr([]byte{a[5], a[4], a[3], a[2], a[1], a[0]})
+
+	ReadBufferSizeRP := cmd.ReadBufferSizeRP{}
+	h.Send(&cmd.ReadBufferSize{}, &ReadBufferSizeRP)
+
+	// Assume the buffers are shared between ACL-U and LE-U.
+	h.bufCnt = int(ReadBufferSizeRP.HCTotalNumACLDataPackets)
+	h.bufSize = int(ReadBufferSizeRP.HCACLDataPacketLength)
+
+	LEReadBufferSizeRP := cmd.LEReadBufferSizeRP{}
+	h.Send(&cmd.LEReadBufferSize{}, &LEReadBufferSizeRP)
+
+	if LEReadBufferSizeRP.HCTotalNumLEDataPackets != 0 {
+		// Okay, LE-U do have their own buffers.
+		h.bufCnt = int(LEReadBufferSizeRP.HCTotalNumLEDataPackets)
+		h.bufSize = int(LEReadBufferSizeRP.HCLEDataPacketLength)
+	}
+
+	LESetEventMaskRP := cmd.LESetEventMaskRP{}
+	h.Send(&cmd.LESetEventMask{LEEventMask: 0x000000000000101F}, &LESetEventMaskRP)
 
 	SetEventMaskRP := cmd.SetEventMaskRP{}
 	h.Send(&cmd.SetEventMask{EventMask: 0x3dbff807fffbffff}, &SetEventMaskRP)
@@ -316,6 +403,7 @@ func (h *HCI) sktLoop() {
 		}
 		p := make([]byte, n)
 		copy(p, b)
+
 		if err := h.handlePkt(p); err != nil {
 			// Some bluetooth devices may append vendor specific packets at the last,
 			// in this case, simply ignore them.
@@ -441,6 +529,56 @@ func (h *HCI) handleLEAdvertisingReport(b []byte) error {
 			a = newAdvertisement(e, i)
 		}
 		go h.advHandler(a)
+	}
+
+	return nil
+}
+
+func (h *HCI) handleLEExtendedAdvertisingReport(b []byte) error {
+	if h.extendedAdvHandler == nil {
+		return nil
+	}
+
+	report, err := newLEExtendedAdvertisingReport(evt.LEExtendedAdvertisingReport(b))
+
+	if err != nil {
+		panic(err)
+	}
+
+	for i := 0; i < int(report.NumReports); i++ {
+		var a *ExtendedAdvertisingData
+		r := &report.Reports[i]
+		switch r.EventType() {
+		case evtTypExtendedAdvInd, evtTypExtendedAdvScanInd:
+			a = &report.Reports[i]
+			h.extendedAdHist[h.extendedAdLast] = a
+			h.extendedAdLast++
+			if h.extendedAdLast == len(h.extendedAdHist) {
+				h.extendedAdLast = 0
+			}
+		case evtTypScanRspToExtendedAdvInd, evtTypScanRspToExtendedAdvScanInd:
+			sr := &report.Reports[i]
+			for idx := h.extendedAdLast - 1; idx != h.extendedAdLast; idx-- {
+				if idx == -1 {
+					idx = len(h.extendedAdHist) - 1
+				}
+				if h.extendedAdHist[idx] == nil {
+					break
+				}
+				if h.extendedAdHist[idx].Addr().String() == sr.Addr().String() {
+					h.extendedAdHist[idx].SetScanResp(sr)
+					a = h.extendedAdHist[idx]
+					break
+				}
+			}
+			if a == nil {
+				return fmt.Errorf("received scan response %x with no associated Advertising Data packet", sr.Addr().String())
+			}
+		default:
+			a = &report.Reports[i]
+		}
+
+		go h.extendedAdvHandler(a)
 	}
 
 	return nil

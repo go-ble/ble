@@ -100,6 +100,26 @@ func Scan(ctx context.Context, allowDup bool, h AdvHandler, f AdvFilter) error {
 	return defaultDevice.Scan(ctx, allowDup, h2)
 }
 
+// ExtendedScan starts scanning. Duplicated advertisements will be filtered out if allowDup is set to false.
+func ExtendedScan(ctx context.Context, allowDup bool, h ExtendedAdvHandler, f AdvFilter) error {
+	if defaultDevice == nil {
+		return ErrDefaultDevice
+	}
+	defer untrap(trap(ctx))
+
+	if f == nil {
+		return defaultDevice.ExtendedScan(ctx, allowDup, h)
+	}
+
+	h2 := func(a ExtendedAdvertisement) {
+		if f(a) {
+			h(a)
+		}
+	}
+
+	return defaultDevice.ExtendedScan(ctx, allowDup, h2)
+}
+
 // Find ...
 func Find(ctx context.Context, allowDup bool, f AdvFilter) ([]Advertisement, error) {
 	if defaultDevice == nil {

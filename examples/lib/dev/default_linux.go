@@ -9,3 +9,8 @@ import (
 func DefaultDevice(opts ...ble.Option) (d ble.Device, err error) {
 	return linux.NewDevice(opts...)
 }
+
+// AdvertisingExtensionsDevice ...
+func AdvertisingExtensionsDevice(opts ...ble.Option) (d ble.Device, err error) {
+	return linux.NewAdvertisingExtensionsDevice(opts...)
+}

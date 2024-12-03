@@ -1560,3 +1560,140 @@ type LERemoteConnectionParameterRequestNegativeReplyRP struct {
 func (c *LERemoteConnectionParameterRequestNegativeReplyRP) Unmarshal(b []byte) error {
 	return unmarshal(c, b)
 }
+
+// LESetExtendedScanParameters implements LE Set Extended Scan Parameters (0x08|0x0041) [Vol 4, Part E, 7.8.64]
+type LESetExtendedScanParameters struct {
+	OwnAddressType       uint8
+	ScanningFilterPolicy uint8
+	ScanningPHYs         uint8
+	ScanType1M           uint8
+	ScanInterval1M       uint16
+	ScanWindow1M         uint16
+	ScanTypeCoded        uint8
+	ScanIntervalCoded    uint16
+	ScanWindowCoded      uint16
+}
+
+func (c *LESetExtendedScanParameters) String() string {
+	return "LE Set Extended Scan Parameters (0x08|0x0041)"
+}
+
+// OpCode returns the opcode of the command.
+func (c *LESetExtendedScanParameters) OpCode() int { return 0x08<<10 | 0x0041 }
+
+// Len returns the length of the command.
+func (c *LESetExtendedScanParameters) Len() int { return 13 }
+
+// Marshal serializes the command parameters into binary form.
+func (c *LESetExtendedScanParameters) Marshal(b []byte) error {
+	return marshal(c, b)
+}
+
+// LESetExtendedScanParametersRP returns the return parameter of LE Set Extended Scan Parameters
+type LESetExtendedScanParametersRP struct {
+	Status uint8
+}
+
+// Unmarshal de-serializes the binary data and stores the result in the receiver.
+func (c *LESetExtendedScanParametersRP) Unmarshal(b []byte) error {
+	return unmarshal(c, b)
+}
+
+// LESetExtendedScanEnable implements LE Set Extended Scan Enable (0x08|0x0042) [Vol 4, Part E, 7.8.65]
+type LESetExtendedScanEnable struct {
+	Enable           uint8
+	FilterDuplicates uint8
+	Duration         uint16
+	Period           uint16
+}
+
+func (c *LESetExtendedScanEnable) String() string {
+	return "LE Set Extended Scan Enable (0x08|0x0042)"
+}
+
+// OpCode returns the opcode of the command.
+func (c *LESetExtendedScanEnable) OpCode() int { return 0x08<<10 | 0x0042 }
+
+// Len returns the length of the command.
+func (c *LESetExtendedScanEnable) Len() int { return 6 }
+
+// Marshal serializes the command parameters into binary form.
+func (c *LESetExtendedScanEnable) Marshal(b []byte) error {
+	return marshal(c, b)
+}
+
+// LESetExtendedScanEnableRP returns the return parameter of LE Set Extended Scan Enable
+type LESetExtendedScanEnableRP struct {
+	Status uint8
+}
+
+// Unmarshal de-serializes the binary data and stores the result in the receiver.
+func (c *LESetExtendedScanEnableRP) Unmarshal(b []byte) error {
+	return unmarshal(c, b)
+}
+
+// LESetDefaultPHY implements LE Set Default PHY (0x08|0x0031) [Vol 4, Part E, 7.8.48]
+type LESetDefaultPHY struct {
+	AllPHYs uint8
+	TXPHYs  uint8
+	RXPHYs  uint8
+}
+
+func (c *LESetDefaultPHY) String() string {
+	return "LE Set Default PHY (0x08|0x0031)"
+}
+
+// OpCode returns the opcode of the command.
+func (c *LESetDefaultPHY) OpCode() int { return 0x08<<10 | 0x0031 }
+
+// Len returns the length of the command.
+func (c *LESetDefaultPHY) Len() int { return 3 }
+
+// Marshal serializes the command parameters into binary form.
+func (c *LESetDefaultPHY) Marshal(b []byte) error {
+	return marshal(c, b)
+}
+
+// LESetExtendedAdvertisingParameters implements LE Set Extended Advertising Parameters (0x08|0x0036) [Vol 4, Part E, 7.8.53]
+type LESetExtendedAdvertisingParameters struct {
+	AdvertisingHandle             uint8
+	AdvertisingEventProperties    uint16
+	PrimaryAdvertisingIntervalMin [3]byte
+	PrimaryAdvertisingIntervalMax [3]byte
+	PrimaryAdvertisingChannelMap  uint8
+	OwnAddressType                uint8
+	PeerAddressType               uint8
+	PeerAddress                   [6]byte
+	AdvertisingFilterPolicy       uint8
+	AdvertisingTXPower            int8
+	PrimaryAdvertisingPHY         uint8
+	SecondaryAdvertisingMaxSkip   uint8
+	SecondaryAdvertisingPHY       uint8
+	AdvertisingSID                uint8
+	ScanRequestNotificationEnable uint8
+}
+
+func (c *LESetExtendedAdvertisingParameters) String() string {
+	return "LE Set Extended Advertising Parameters (0x08|0x0036)"
+}
+
+// OpCode returns the opcode of the command.
+func (c *LESetExtendedAdvertisingParameters) OpCode() int { return 0x08<<10 | 0x0036 }
+
+// Len returns the length of the command.
+func (c *LESetExtendedAdvertisingParameters) Len() int { return 25 }
+
+// Marshal serializes the command parameters into binary form.
+func (c *LESetExtendedAdvertisingParameters) Marshal(b []byte) error {
+	return marshal(c, b)
+}
+
+// LESetExtendedAdvertisingParametersRP returns the return parameter of LE Set Extended Advertising Parameters
+type LESetExtendedAdvertisingParametersRP struct {
+	Status uint8
+}
+
+// Unmarshal de-serializes the binary data and stores the result in the receiver.
+func (c *LESetExtendedAdvertisingParametersRP) Unmarshal(b []byte) error {
+	return unmarshal(c, b)
+}

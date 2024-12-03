@@ -322,6 +322,30 @@
                                 }
                         ],
                         "DefaultUnmarshaller": true
+                },
+                {
+                        "Name": "LE Extended Advertising Report",
+                        "Spec": "Vol 4, Part E, 7.7.65.13",
+                        "Code": "0x3E",
+                        "SubCode": "0x0D",
+                        "Param": [
+                                { "Subevent_Code": "uint8" },
+                                { "Num_Reports": "uint8" },
+                                { "Event_Type": "[]uint16" },
+                                { "Address_Type": "[]uint8" },
+                                { "Address": "[][6]byte" },
+                                { "Primary_PHY": "[]uint8" },
+                                { "Secondary_PHY": "[]uint8" },
+                                { "Advertising_SID": "[]uint8" },
+                                { "TX_Power": "[]int8" },
+                                { "RSSI": "[]int8" },
+                                { "Periodic_Advertising_Interval": "[]uint16" },
+                                { "Direct_Address_Type": "[]uint8" },
+                                { "Direct_Address": "[][6]byte" },
+                                { "Data_Length": "[]uint8" },
+                                { "Data": "[][]byte" }
+                        ],
+                        "DefaultUnmarshaller": false
                 }
         ]
 }

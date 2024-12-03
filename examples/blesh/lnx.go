@@ -31,6 +31,20 @@ func updateLinuxParam(d *linux.Device) error {
 		return errors.Wrap(err, "can't set scan param")
 	}
 
+	if err := d.HCI.Send(&cmd.LESetExtendedScanParameters{
+		OwnAddressType:       0x00,   // 0x00: public, 0x01: random
+		ScanningFilterPolicy: 0x00,   // 0x00: accept all, 0x01: ignore non-white-listed
+		ScanningPHYs:         0x01,   // 0x01: Scan on the LE 1M PHY, 0x04: Scan on the LE Coded PHY
+		ScanType1M:           0x01,   // 0x00: passive scan, 0x01: active scan
+		ScanInterval1M:       0x0004, // 0x0004 - 0x4000; N * 0.625 msec (2.5 ms)
+		ScanWindow1M:         0x0004, // 0x0004 - 0x4000; N * 0.625 msec (2.5 ms)
+		ScanTypeCoded:        0x01,   // 0x00: passive scan, 0x01: active scan (for Coded PHY)
+		ScanIntervalCoded:    0x0004, // N * 0.625 msec, scan interval for Coded PHY
+		ScanWindowCoded:      0x0004, // N * 0.625 msec, scan window for Coded PHY
+	}, nil); err != nil {
+		return errors.Wrap(err, "can't set scan param")
+	}
+
 	if err := d.HCI.Option(ble.OptConnParams(
 		cmd.LECreateConnection{
 			LEScanInterval:        0x0004,    // 0x0004 - 0x4000; N * 0.625 msec

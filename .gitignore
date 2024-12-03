@@ -1,7 +1,3 @@
-.*.swp
-.tags
-.tags1
-
-/examples/bin/*
-vendor
 .idea
+.uuid
+*DS_Store

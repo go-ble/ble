@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/go-ble/ble/linux/hci/cmd"
 	"net"
 	"time"
 
@@ -22,6 +23,12 @@ func (h *HCI) SetAdvHandler(ah ble.AdvHandler) error {
 	return nil
 }
 
+// SetExtendedAdvHandler ...
+func (h *HCI) SetExtendedAdvHandler(ah ble.ExtendedAdvHandler) error {
+	h.extendedAdvHandler = ah
+	return nil
+}
+
 // Scan starts scanning.
 func (h *HCI) Scan(allowDup bool) error {
 	h.params.scanEnable.FilterDuplicates = 1
@@ -35,9 +42,62 @@ func (h *HCI) Scan(allowDup bool) error {
 }
 
 // StopScanning stops scanning.
+func (h *HCI) Reset() error {
+	return h.ResetHCI()
+}
+
+// StopScanning stops scanning.
 func (h *HCI) StopScanning() error {
 	h.params.scanEnable.LEScanEnable = 0
 	return h.Send(&h.params.scanEnable, nil)
+}
+
+// LESetExtendedScanParameters starts scanning.
+func (h *HCI) LESetExtendedScanParameters() error {
+	//h.params.extendedScanParams = cmd.LESetExtendedScanParameters{
+	//	OwnAddressType:       0x00,   // 0x00: public, 0x01: random
+	//	ScanningFilterPolicy: 0x00,   // 0x00: accept all, 0x01: ignore non-white-listed
+	//	ScanningPHYs:         0x05,   // 0x01: Scan on the LE 1M PHY, 0x04: Scan on the LE Coded PHY
+	//	ScanType1M:           0x01,   // 0x00: passive scan, 0x01: active scan
+	//	ScanInterval1M:       0x0064, // 0x0004 - 0x4000; N * 0.625 msec (2.5 ms)
+	//	ScanWindow1M:         0x0032, // 0x0004 - 0x4000; N * 0.625 msec (2.5 ms)
+	//	ScanTypeCoded:        0x01,   // 0x00: passive scan, 0x01: active scan (for Coded PHY)
+	//	ScanIntervalCoded:    0x0BB8, // N * 0.625 msec, scan interval for Coded PHY
+	//	ScanWindowCoded:      0x0032, // N * 0.625 msec, scan window for Coded PHY
+	//}
+	return h.Send(&h.params.extendedScanParams, nil)
+}
+
+// LeSetDefaultPHYForExtendedScan starts scanning.
+func (h *HCI) LeSetDefaultPHYForExtendedScan() error {
+	h.params.leSetDefaultPHY = cmd.LESetDefaultPHY{
+		AllPHYs: 0x00, // 0x00: No preference, use all PHYs
+		TXPHYs:  0x07, // 0x01: LE 1M, 0x02: LE 2M, 0x04: LE Coded (0x07 to use all PHYs)
+		RXPHYs:  0x07, // 0x01: LE 1M, 0x02: LE 2M, 0x04: LE Coded (uses all PHYs at 0x07)
+	}
+	return h.Send(&h.params.leSetDefaultPHY, nil)
+}
+
+// ExtendedScan starts scanning.
+func (h *HCI) ExtendedScan(allowDup bool) error {
+	h.params.extendedScanEnable = cmd.LESetExtendedScanEnable{
+		FilterDuplicates: 0x01,
+		Duration:         0xBB8,
+		Period:           0x12C,
+	}
+	if allowDup {
+		h.params.extendedScanEnable.FilterDuplicates = 0
+	}
+	h.params.extendedScanEnable.Enable = 1
+	h.extendedAdHist = make([]*ExtendedAdvertisingData, 128)
+	h.extendedAdLast = 0
+	return h.Send(&h.params.extendedScanEnable, nil)
+}
+
+// StopExtendedScan stops scanning.
+func (h *HCI) StopExtendedScan() error {
+	h.params.extendedScanEnable.Enable = 0
+	return h.Send(&h.params.extendedScanEnable, nil)
 }
 
 // AdvertiseAdv advertises a given Advertisement

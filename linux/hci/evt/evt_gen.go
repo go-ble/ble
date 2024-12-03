@@ -225,3 +225,10 @@ type AuthenticatedPayloadTimeoutExpired []byte
 func (r AuthenticatedPayloadTimeoutExpired) ConnectionHandle() uint16 {
 	return binary.LittleEndian.Uint16(r[0:])
 }
+
+const LEExtendedAdvertisingReportCode = 0x3E
+
+const LEExtendedAdvertisingReportSubCode = 0x0D
+
+// LEExtendedAdvertisingReport implements LE Extended Advertising Report (0x3E:0x0D) [Vol 4, Part E, 7.7.65.13].
+type LEExtendedAdvertisingReport []byte

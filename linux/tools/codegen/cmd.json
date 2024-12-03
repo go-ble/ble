@@ -1241,6 +1241,98 @@
                         "Events": [
                                 "Command Complete"
                         ]
+                },
+                {
+                        "Name": "LE Set Extended Scan Parameters",
+                        "Spec": "Vol 4, Part E, 7.8.64",
+                        "OGF": "0x08",
+                        "OCF": "0x0041",
+                        "Len": 13,
+                        "Param": [
+                                { "Own_Address_Type": "uint8" },
+                                { "Scanning_Filter_Policy": "uint8" },
+                                { "Scanning_PHYs": "uint8" },
+                                { "Scan_Type_1M": "uint8" },
+                                { "Scan_Interval_1M": "uint16" },
+                                { "Scan_Window_1M": "uint16" },
+                                { "Scan_Type_Coded": "uint8" },
+                                { "Scan_Interval_Coded": "uint16" },
+                                { "Scan_Window_Coded": "uint16" }
+                        ],
+                        "Return": [
+                                { "Status": "uint8" }
+                        ],
+                        "Events": [
+                                "Command Complete"
+                        ]
+                },
+                {
+                        "Name": "LE Set Extended Scan Enable",
+                        "Spec": "Vol 4, Part E, 7.8.65",
+                        "OGF": "0x08",
+                        "OCF": "0x0042",
+                        "Len": 6,
+                        "Param": [
+                                { "Enable": "uint8" },
+                                { "Filter_Duplicates": "uint8" },
+                                { "Duration": "uint16" },
+                                { "Period": "uint16" }
+                        ],
+                        "Return": [
+                                { "Status": "uint8" }
+                        ],
+                        "Events": [
+                                "Command Complete",
+                                "LE Extended Advertising Report",
+                                "LE Scan Timeout"
+                        ]
+                },
+                {
+                        "Name": "LE Set Default PHY",
+                        "Spec": "Vol 4, Part E, 7.8.48",
+                        "OGF": "0x08",
+                        "OCF": "0x0031",
+                        "Len": 3,
+                        "Param": [
+                                { "All_PHYs": "uint8" },
+                                { "TX_PHYs": "uint8" },
+                                { "RX_PHYs": "uint8" }
+                        ],
+                        "Return": [],
+                        "Events": [
+                                "Command Status",
+                                "LE PHY Update Complete"
+                        ]
+                },
+                {
+                        "Name": "LE Set Extended Advertising Parameters",
+                        "Spec": "Vol 4, Part E, 7.8.53",
+                        "OGF": "0x08",
+                        "OCF": "0x0036",
+                        "Len": 25,
+                        "Param": [
+                                { "Advertising_Handle": "uint8" },
+                                { "Advertising_Event_Properties": "uint16" },
+                                { "Primary_Advertising_Interval_Min": "[3]byte" },
+                                { "Primary_Advertising_Interval_Max": "[3]byte" },
+                                { "Primary_Advertising_Channel_Map": "uint8" },
+                                { "Own_Address_Type": "uint8" },
+                                { "Peer_Address_Type": "uint8" },
+                                { "Peer_Address": "[6]byte" },
+                                { "Advertising_Filter_Policy": "uint8" },
+                                { "Advertising_TX_Power": "int8" },
+                                { "Primary_Advertising_PHY": "uint8" },
+                                { "Secondary_Advertising_Max_Skip": "uint8" },
+                                { "Secondary_Advertising_PHY": "uint8" },
+                                { "Advertising_SID": "uint8" },
+                                { "Scan_Request_Notification_Enable": "uint8" }
+                        ],
+                        "Return": [
+                                { "Status": "uint8" }
+                        ],
+                        "Events": [
+                                "Command Complete"
+                        ]
                 }
         ]
 }
