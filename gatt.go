@@ -142,6 +142,10 @@ func Connect(ctx context.Context, f AdvFilter) (Client, error) {
 		if err != context.Canceled {
 			return nil, errors.Wrap(err, "can't scan")
 		}
+		// If the parent context was cancelled, Dial below would hang.
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 	}
 
 	cln, err := Dial(ctx, (<-ch).Addr())
