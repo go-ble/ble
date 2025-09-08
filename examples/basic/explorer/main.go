@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -42,13 +44,17 @@ func main() {
 		}
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
+	defer stop()
+
 	// Scan for specified durantion, or until interrupted by user.
 	fmt.Printf("Scanning for %s...\n", *sd)
-	ctx := ble.WithSigHandler(context.WithTimeout(context.Background(), *sd))
-	cln, err := ble.Connect(ctx, filter)
+	connectCtx, cancelConnect := context.WithTimeout(ctx, *sd)
+	cln, err := ble.Connect(connectCtx, filter)
 	if err != nil {
 		log.Fatalf("can't connect : %s", err)
 	}
+	cancelConnect()
 
 	// Make sure we had the chance to print out the message.
 	done := make(chan struct{})
@@ -68,7 +74,7 @@ func main() {
 	}
 
 	// Start the exploration.
-	explore(cln, p)
+	explore(ctx, cln, p)
 
 	// Disconnect the connection. (On OS X, this might take a while.)
 	fmt.Printf("Disconnecting [ %s ]... (this might take up to few seconds on OS X)\n", cln.Addr())
@@ -77,7 +83,9 @@ func main() {
 	<-done
 }
 
-func explore(cln ble.Client, p *ble.Profile) error {
+func explore(ctx context.Context, cln ble.Client, p *ble.Profile) error {
+	var activeSubscriptions []*ble.Characteristic // Wait at the end if the list is not empty.
+
 	for _, s := range p.Services {
 		fmt.Printf("    Service: %s %s, Handle (0x%02X)\n", s.UUID, ble.Name(s.UUID), s.Handle)
 
@@ -118,35 +126,52 @@ func explore(cln ble.Client, p *ble.Profile) error {
 					continue
 				}
 
+				prefix := fmt.Sprintf("Service(%s), Characteristic(%s): ", s.UUID, c.UUID)
 				if (c.Property & ble.CharNotify) != 0 {
 					fmt.Printf("\n-- Subscribe to notification for %s --\n", *sub)
-					h := func(req []byte) { fmt.Printf("Notified: %q [ % X ]\n", string(req), req) }
+					h := func(req []byte) { fmt.Printf("%s: Notified: %q [ % X ]\n", prefix, string(req), req) }
 					if err := cln.Subscribe(c, false, h); err != nil {
 						log.Fatalf("subscribe failed: %s", err)
 					}
-					time.Sleep(*sub)
-					if err := cln.Unsubscribe(c, false); err != nil {
-						log.Fatalf("unsubscribe failed: %s", err)
-					}
-					fmt.Printf("-- Unsubscribe to notification --\n")
+					activeSubscriptions = append(activeSubscriptions, c)
 				}
 				if (c.Property & ble.CharIndicate) != 0 {
 					fmt.Printf("\n-- Subscribe to indication of %s --\n", *sub)
-					h := func(req []byte) { fmt.Printf("Indicated: %q [ % X ]\n", string(req), req) }
+					h := func(req []byte) { fmt.Printf("%s: Indicated: %q [ % X ]\n", prefix, string(req), req) }
 					if err := cln.Subscribe(c, true, h); err != nil {
 						log.Fatalf("subscribe failed: %s", err)
 					}
-					time.Sleep(*sub)
-					if err := cln.Unsubscribe(c, true); err != nil {
-						log.Fatalf("unsubscribe failed: %s", err)
-					}
-					fmt.Printf("-- Unsubscribe to indication --\n")
+					activeSubscriptions = append(activeSubscriptions, c)
 				}
 			}
 		}
 		fmt.Printf("\n")
 	}
-	return nil
+	if len(activeSubscriptions) == 0 {
+		return nil
+	}
+
+	// If we are subscribed, wait out the subscription duration (--sub).
+	select {
+	case <-time.After(*sub): // The happy path.
+	case <-cln.Disconnected():
+		// Some devices will kick us earlier. Maybe reconnect.
+		// In this example we will proceed, unsubscribing will not block.
+	case <-ctx.Done():
+		// The user has pressed ctrl+C or something.
+		// This could be the user connecting to a different endpoint.
+		// In any case, show how to orderly exit by proceeding to cln.Unsubscribe.
+	}
+	var err error // Retain the last error, do not exit on the first with entries remaining.
+	for _, c := range activeSubscriptions {
+		if err2 := cln.Unsubscribe(c, (c.Property&ble.CharNotify) != 0); err2 != nil {
+			err = err2
+			log.Printf("unsubscribe failed: %s", err2)
+		} else {
+			log.Printf("-- Unsubscribed from notification or indication --\n")
+		}
+	}
+	return err
 }
 
 func propString(p ble.Property) string {
