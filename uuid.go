@@ -94,9 +94,14 @@ func Reverse(u []byte) []byte {
 	return b
 }
 
-// Name returns name of know services, characteristics, or descriptors.
+// Name returns name of known services, characteristics, or descriptors.
 func Name(u UUID) string {
 	return knownUUID[u.String()].Name
+}
+
+// Type returns type of known services, characteristics, or descriptors.
+func Type(u UUID) string {
+	return knownUUID[u.String()].Type
 }
 
 // A dictionary of known service names and type (keyed by service uuid)
