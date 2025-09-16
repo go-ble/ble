@@ -4,6 +4,9 @@ import "context"
 
 // Device ...
 type Device interface {
+	// MAC address of the local device.
+	Address() Addr
+
 	// AddService adds a service to database.
 	AddService(svc *Service) error
 
