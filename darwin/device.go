@@ -142,22 +142,38 @@ func (d *Device) Scan(ctx context.Context, allowDup bool, h ble.AdvHandler) erro
 	// Respond to requests from the delegate for a channel to provide
 	// advertisements on.  For each such request, use wg.Add to track that
 	// there's an advertisement now in progress that we need to wait for.
+	stateChangedCh := d.evl.stateChanged.Listen()
+	defer d.evl.stateChanged.Close()
 loop:
 	for {
 		select {
 		case advCh <- ch:
 			wg.Add(1)
+		case <-stateChangedCh:
+			// Bluetooth state changed - check if powered off
+			if d.cm.State() != cbgo.ManagerStatePoweredOn {
+				// Bluetooth is no longer powered on - exit loop
+				break loop
+			}
+			// State changed but still powered on - continue scanning
 		case <-ctx.Done():
 			break loop
 		}
 	}
-
 	close(advCh) // context is expired, so signal DidDiscoverPeripheral to start discarding results
 	wg.Done()    // for our wg.Add(1) at the top
 	wg.Wait()    // wait until all pending delegate calls have returned their results
 	close(ch)    // let the goroutine processing results above terminate
 
-	return ctx.Err()
+	// Check if we exited due to state change vs context cancellation
+	select {
+	case <-stateChangedCh:
+		// Bluetooth state changed - return error
+		return fmt.Errorf("central manager has invalid state: have=%d want=%d: is Bluetooth turned on?",
+			d.cm.State(), cbgo.ManagerStatePoweredOn)
+	default:
+		return ctx.Err()
+	}
 }
 
 // Dial ...
