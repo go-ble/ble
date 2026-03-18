@@ -93,6 +93,16 @@ func (d *Device) Option(opts ...ble.Option) error {
 //
 // Concurrent Scan operations will result in undefined behavior.
 func (d *Device) Scan(ctx context.Context, allowDup bool, h ble.AdvHandler) error {
+	return d.scan(ctx, allowDup, h, nil)
+}
+
+// ScanWithServices behaves like Scan but forwards the service UUID filter to
+// CoreBluetooth so macOS will request scan responses for matching devices.
+func (d *Device) ScanWithServices(ctx context.Context, allowDup bool, h ble.AdvHandler, services []ble.UUID) error {
+	return d.scan(ctx, allowDup, h, services)
+}
+
+func (d *Device) scan(ctx context.Context, allowDup bool, h ble.AdvHandler, services []ble.UUID) error {
 	// Because the OS delivers results to the delegate
 	// DidDiscoverPeripheral concurrently, we need a way to handle
 	// events when a Scan is in progress, and safely discard them
@@ -117,7 +127,7 @@ func (d *Device) Scan(ctx context.Context, allowDup bool, h ble.AdvHandler) erro
 
 	// Start scanning, and stop scanning when the context expires.
 	go func() {
-		d.cm.Scan(nil, &cbgo.CentralManagerScanOpts{
+		d.cm.Scan(uuidsToCbgoUUIDs(services), &cbgo.CentralManagerScanOpts{
 			AllowDuplicates: allowDup,
 		})
 		<-ctx.Done()

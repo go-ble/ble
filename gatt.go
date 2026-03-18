@@ -14,6 +14,10 @@ var ErrDefaultDevice = errors.New("default device is not set")
 
 var defaultDevice Device
 
+type serviceScanner interface {
+	ScanWithServices(ctx context.Context, allowDup bool, h AdvHandler, services []UUID) error
+}
+
 // SetDefaultDevice returns the default HCI device.
 func SetDefaultDevice(d Device) {
 	defaultDevice = d
@@ -98,6 +102,35 @@ func Scan(ctx context.Context, allowDup bool, h AdvHandler, f AdvFilter) error {
 		}
 	}
 	return defaultDevice.Scan(ctx, allowDup, h2)
+}
+
+// ScanWithServices starts scanning while requesting that the backend use the
+// provided service UUIDs as native scan filters when supported.
+func ScanWithServices(ctx context.Context, allowDup bool, h AdvHandler, f AdvFilter, services []UUID) error {
+	if defaultDevice == nil {
+		return ErrDefaultDevice
+	}
+	defer untrap(trap(ctx))
+
+	if len(services) == 0 {
+		return Scan(ctx, allowDup, h, f)
+	}
+
+	scanner, ok := defaultDevice.(serviceScanner)
+	if !ok {
+		return Scan(ctx, allowDup, h, f)
+	}
+
+	if f == nil {
+		return scanner.ScanWithServices(ctx, allowDup, h, services)
+	}
+
+	h2 := func(a Advertisement) {
+		if f(a) {
+			h(a)
+		}
+	}
+	return scanner.ScanWithServices(ctx, allowDup, h2, services)
 }
 
 // Find ...
