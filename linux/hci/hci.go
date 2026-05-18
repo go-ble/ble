@@ -133,6 +133,7 @@ func (h *HCI) Init() error {
 	h.subh[evt.LEConnectionCompleteSubCode] = h.handleLEConnectionComplete
 	h.subh[evt.LEConnectionUpdateCompleteSubCode] = h.handleLEConnectionUpdateComplete
 	h.subh[evt.LELongTermKeyRequestSubCode] = h.handleLELongTermKeyRequest
+	h.subh[evt.LEPHYUpdateCompleteSubCode] = h.handleLEPHYUpdateComplete
 	// evt.EncryptionChangeCode:                     todo),
 	// evt.ReadRemoteVersionInformationCompleteCode: todo),
 	// evt.HardwareErrorCode:                        todo),
@@ -524,6 +525,10 @@ func (h *HCI) handleLEConnectionComplete(b []byte) error {
 }
 
 func (h *HCI) handleLEConnectionUpdateComplete(b []byte) error {
+	return nil
+}
+
+func (h *HCI) handleLEPHYUpdateComplete(b []byte) error {
 	return nil
 }
 
