@@ -2,9 +2,11 @@ package darwin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/JuulLabs-OSS/cbgo"
 	"github.com/go-ble/ble"
@@ -167,6 +169,12 @@ func (c *conn) ReadPHY() (int, int, error) {
 
 // SetPHY sets the PHY for the connection.
 func (c *conn) SetPHY(txPhy int, rxPhy int) error {
+	// Not implemented for darwin
+	return errors.New("Not supported")
+}
+
+// UpdateConnection updates the connection parameters.
+func (c *conn) UpdateConnection(intervalMin time.Duration, intervalMax time.Duration, latency int, supervisionTimeout time.Duration) error {
 	// Not implemented for darwin
 	return errors.New("Not supported")
 }

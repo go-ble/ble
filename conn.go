@@ -3,6 +3,7 @@ package ble
 import (
 	"context"
 	"io"
+	"time"
 )
 
 // Conn implements a L2CAP connection.
@@ -41,6 +42,9 @@ type Conn interface {
 
 	// SetPHY sets the PHY for the connection.
 	SetPHY(txPhy int, rxPhy int) error
+
+	// UpdateConnection updates the connection parameters.
+	UpdateConnection(intervalMin time.Duration, intervalMax time.Duration, latency int, supervisionTimeout time.Duration) error
 
 	// Disconnected returns a receiving channel, which is closed when the connection disconnects.
 	Disconnected() <-chan struct{}
