@@ -231,6 +231,23 @@ func (h *HCI) init() error {
 	return h.err
 }
 
+// SetDefaultPHY sets the default PHYs for future connections. [Vol 2, Part E, 7.8.48]
+func (h *HCI) SetDefaultPHY(txPhy int, rxPhy int) error {
+	rp := new(cmd.LESetDefaultPHYRP)
+	err := h.Send(&cmd.LESetDefaultPHY{
+		ALLPHYS: 0,
+		TXPHYS:  uint8(txPhy),
+		RXPHYS:  uint8(rxPhy),
+	}, rp)
+	if err != nil {
+		return err
+	}
+	if rp.Status != 0 {
+		return fmt.Errorf("failed to set default PHY: status 0x%02x", rp.Status)
+	}
+	return nil
+}
+
 // Send ...
 func (h *HCI) Send(c Command, r CommandRP) error {
 	// Only allow one send after another to prevent race condition

@@ -36,6 +36,12 @@ type Conn interface {
 	// ReadRSSI retrieves the current RSSI value of remote peripheral. [Vol 2, Part E, 7.5.4]
 	ReadRSSI() int
 
+	// ReadPHY retrieves the current PHY settings of the connection.
+	ReadPHY() (txPhy int, rxPhy int, err error)
+
+	// SetPHY sets the PHY for the connection.
+	SetPHY(txPhy int, rxPhy int) error
+
 	// Disconnected returns a receiving channel, which is closed when the connection disconnects.
 	Disconnected() <-chan struct{}
 }

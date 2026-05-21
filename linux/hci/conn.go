@@ -306,6 +306,26 @@ func (c *Conn) ReadRSSI() int {
 	return int(rp.RSSI)
 }
 
+// ReadPHY retrieves the current PHY settings of the connection. [Vol 2, Part E, 7.8.47]
+func (c *Conn) ReadPHY() (int, int, error) {
+	rp := new(cmd.LEReadPHYRP)
+	err := c.hci.Send(&cmd.LEReadPHY{
+		ConnectionHandle: c.param.ConnectionHandle(),
+	}, rp)
+	return int(rp.TXPHY), int(rp.RXPHY), err
+}
+
+// SetPHY sets the PHY for the connection. [Vol 2, Part E, 7.8.49]
+func (c *Conn) SetPHY(txPhy int, rxPhy int) error {
+	return c.hci.Send(&cmd.LESetPHY{
+		ConnectionHandle: c.param.ConnectionHandle(),
+		ALLPHYS:          0,
+		TXPHYS:           uint8(txPhy),
+		RXPHYS:           uint8(rxPhy),
+		PHYOptions:       0,
+	}, nil)
+}
+
 // Close disconnects the connection by sending hci disconnect command to the device.
 func (c *Conn) Close() error {
 	select {

@@ -159,6 +159,18 @@ func (c *conn) ReadRSSI() int {
 	}
 }
 
+// ReadPHY retrieves the current PHY settings of the connection.
+func (c *conn) ReadPHY() (int, int, error) {
+	// Not implemented for darwin
+	return 0, 0, errors.New("Not supported")
+}
+
+// SetPHY sets the PHY for the connection.
+func (c *conn) SetPHY(txPhy int, rxPhy int) error {
+	// Not implemented for darwin
+	return errors.New("Not supported")
+}
+
 // processChrRead handles an incoming read response.  CoreBluetooth does not
 // distinguish explicit reads from unsolicited notifications.  This function
 // identifies which type the incoming message is.
