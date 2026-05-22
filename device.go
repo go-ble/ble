@@ -42,4 +42,7 @@ type Device interface {
 
 	// Dial ...
 	Dial(ctx context.Context, a Addr) (Client, error)
+
+	// SetDefaultPHY sets the default PHYs for future connections.
+	SetDefaultPHY(txPhy int, rxPhy int) error
 }

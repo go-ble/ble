@@ -64,7 +64,8 @@ func (c *Conn) Signal(req Signal, rsp Signal) error {
 		return errors.New("signaling request timed out")
 	}
 
-	if s.code() != req.Code() {
+	// The connection parameter update request will trigger an update response.
+	if s.code() != req.Code() && !(req.Code() == SignalConnectionParameterUpdateRequest && s.code() == SignalConnectionParameterUpdateResponse) {
 		return errors.New("mismatched signaling response")
 	}
 	if s.id() != c.sigID {

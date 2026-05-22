@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"github.com/go-ble/ble"
 	"github.com/go-ble/ble/linux/hci/cmd"
@@ -304,6 +305,61 @@ func (c *Conn) ReadRSSI() int {
 		Handle: c.param.ConnectionHandle(),
 	}, rp)
 	return int(rp.RSSI)
+}
+
+// ReadPHY retrieves the current PHY settings of the connection. [Vol 2, Part E, 7.8.47]
+func (c *Conn) ReadPHY() (int, int, error) {
+	rp := new(cmd.LEReadPHYRP)
+	err := c.hci.Send(&cmd.LEReadPHY{
+		ConnectionHandle: c.param.ConnectionHandle(),
+	}, rp)
+	return int(rp.TXPHY), int(rp.RXPHY), err
+}
+
+// SetPHY sets the PHY for the connection. [Vol 2, Part E, 7.8.49]
+func (c *Conn) SetPHY(txPhy int, rxPhy int) error {
+	return c.hci.Send(&cmd.LESetPHY{
+		ConnectionHandle: c.param.ConnectionHandle(),
+		ALLPHYS:          0,
+		TXPHYS:           uint8(txPhy),
+		RXPHYS:           uint8(rxPhy),
+		PHYOptions:       0,
+	}, nil)
+}
+
+// UpdateConnection updates the connection parameters. [Vol 2, Part E, 7.8.18]
+func (c *Conn) UpdateConnection(intervalMin time.Duration, intervalMax time.Duration, latency int, supervisionTimeout time.Duration) error {
+	min := uint16(intervalMin / (1250 * time.Microsecond))
+	max := uint16(intervalMax / (1250 * time.Microsecond))
+	timeout := uint16(supervisionTimeout / (10 * time.Millisecond))
+
+	if c.param.Role() != roleMaster {
+		// As a slave, we should use the L2CAP Connection Parameter Update Request
+		req := &ConnectionParameterUpdateRequest{
+			IntervalMin:       min,
+			IntervalMax:       max,
+			SlaveLatency:      uint16(latency),
+			TimeoutMultiplier: timeout,
+		}
+		rsp := &ConnectionParameterUpdateResponse{}
+		if err := c.Signal(req, rsp); err != nil {
+			return err
+		}
+		if rsp.Result != 0 {
+			return fmt.Errorf("connection parameter update rejected: 0x%04x", rsp.Result)
+		}
+		return nil
+	}
+
+	return c.hci.Send(&cmd.LEConnectionUpdate{
+		ConnectionHandle:   c.param.ConnectionHandle(),
+		ConnIntervalMin:    min,
+		ConnIntervalMax:    max,
+		ConnLatency:        uint16(latency),
+		SupervisionTimeout: timeout,
+		MinimumCELength:    0x0000,
+		MaximumCELength:    0x0000,
+	}, nil)
 }
 
 // Close disconnects the connection by sending hci disconnect command to the device.

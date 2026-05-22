@@ -133,6 +133,7 @@ func (h *HCI) Init() error {
 	h.subh[evt.LEConnectionCompleteSubCode] = h.handleLEConnectionComplete
 	h.subh[evt.LEConnectionUpdateCompleteSubCode] = h.handleLEConnectionUpdateComplete
 	h.subh[evt.LELongTermKeyRequestSubCode] = h.handleLELongTermKeyRequest
+	h.subh[evt.LEPHYUpdateCompleteSubCode] = h.handleLEPHYUpdateComplete
 	// evt.EncryptionChangeCode:                     todo),
 	// evt.ReadRemoteVersionInformationCompleteCode: todo),
 	// evt.HardwareErrorCode:                        todo),
@@ -228,6 +229,23 @@ func (h *HCI) init() error {
 	h.Send(&cmd.WriteLEHostSupport{LESupportedHost: 1, SimultaneousLEHost: 0}, &WriteLEHostSupportRP)
 
 	return h.err
+}
+
+// SetDefaultPHY sets the default PHYs for future connections. [Vol 2, Part E, 7.8.48]
+func (h *HCI) SetDefaultPHY(txPhy int, rxPhy int) error {
+	rp := new(cmd.LESetDefaultPHYRP)
+	err := h.Send(&cmd.LESetDefaultPHY{
+		ALLPHYS: 0,
+		TXPHYS:  uint8(txPhy),
+		RXPHYS:  uint8(rxPhy),
+	}, rp)
+	if err != nil {
+		return err
+	}
+	if rp.Status != 0 {
+		return fmt.Errorf("failed to set default PHY: status 0x%02x", rp.Status)
+	}
+	return nil
 }
 
 // Send ...
@@ -524,6 +542,10 @@ func (h *HCI) handleLEConnectionComplete(b []byte) error {
 }
 
 func (h *HCI) handleLEConnectionUpdateComplete(b []byte) error {
+	return nil
+}
+
+func (h *HCI) handleLEPHYUpdateComplete(b []byte) error {
 	return nil
 }
 

@@ -220,3 +220,8 @@ func (d *Device) Dial(ctx context.Context, a ble.Addr) (ble.Client, error) {
 func (d *Device) Address() ble.Addr {
 	return d.HCI.Addr()
 }
+
+// SetDefaultPHY sets the default PHYs for future connections.
+func (d *Device) SetDefaultPHY(txPhy int, rxPhy int) error {
+	return d.HCI.SetDefaultPHY(txPhy, rxPhy)
+}

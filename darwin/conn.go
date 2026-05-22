@@ -2,9 +2,11 @@ package darwin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/JuulLabs-OSS/cbgo"
 	"github.com/go-ble/ble"
@@ -157,6 +159,24 @@ func (c *conn) ReadRSSI() int {
 		}
 		return ev.rssi
 	}
+}
+
+// ReadPHY retrieves the current PHY settings of the connection.
+func (c *conn) ReadPHY() (int, int, error) {
+	// Not implemented for darwin
+	return 0, 0, errors.New("Not supported")
+}
+
+// SetPHY sets the PHY for the connection.
+func (c *conn) SetPHY(txPhy int, rxPhy int) error {
+	// Not implemented for darwin
+	return errors.New("Not supported")
+}
+
+// UpdateConnection updates the connection parameters.
+func (c *conn) UpdateConnection(intervalMin time.Duration, intervalMax time.Duration, latency int, supervisionTimeout time.Duration) error {
+	// Not implemented for darwin
+	return errors.New("Not supported")
 }
 
 // processChrRead handles an incoming read response.  CoreBluetooth does not

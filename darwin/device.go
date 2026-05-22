@@ -408,3 +408,9 @@ func (d *Device) AdvertiseIBeacon(ctx context.Context, u ble.UUID, major, minor 
 	b[20] = uint8(pwr)                        // Measured Tx Power
 	return d.AdvertiseIBeaconData(ctx, b)
 }
+
+// SetDefaultPHY sets the default PHYs for future connections.
+func (d *Device) SetDefaultPHY(txPhy int, rxPhy int) error {
+	// Not implemented for darwin
+	return errors.New("Not supported")
+}
