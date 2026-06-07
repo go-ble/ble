@@ -116,8 +116,18 @@ func genCharAttr(c *ble.Characteristic, h uint16) (uint16, []*attr) {
 	c.Handle = h
 	c.ValueHandle = vh
 	if c.NotifyHandler != nil || c.IndicateHandler != nil {
-		c.CCCD = newCCCD(c)
-		c.Descriptors = append(c.Descriptors, c.CCCD)
+		// Generate a CCCD, if it does not exist yet.
+		hasCCCD := false
+		for _, descriptor := range c.Descriptors {
+			if descriptor.UUID.Equal(ble.ClientCharacteristicConfigUUID) {
+				hasCCCD = true
+				break
+			}
+		}
+		if !hasCCCD {
+			c.CCCD = newCCCD(c)
+			c.Descriptors = append(c.Descriptors, c.CCCD)
+		}
 	}
 
 	h += 2
