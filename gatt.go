@@ -144,8 +144,17 @@ func Connect(ctx context.Context, f AdvFilter) (Client, error) {
 		}
 	}
 
-	cln, err := Dial(ctx, (<-ch).Addr())
-	return cln, errors.Wrap(err, "can't dial")
+	select {
+	case a, ok := <-ch:
+		if ok {
+			cln, err := Dial(ctx, a.Addr())
+			return cln, errors.Wrap(err, "can't dial")
+		} else {
+			return nil, errors.New("channel closed")
+		}
+	default:
+		return nil, errors.New("not found")
+	}
 }
 
 // A NotificationHandler handles notification or indication from a server.

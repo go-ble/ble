@@ -53,6 +53,7 @@ type devListRequest struct {
 // Socket implements a HCI User Channel as ReadWriteCloser.
 type Socket struct {
 	fd     int
+	id     int
 	closed chan struct{}
 	rmu    sync.Mutex
 	wmu    sync.Mutex
@@ -118,7 +119,7 @@ func open(fd, id int) (*Socket, error) {
 		unix.Read(fd, b)
 	}
 
-	return &Socket{fd: fd, closed: make(chan struct{})}, nil
+	return &Socket{fd: fd, id: id, closed: make(chan struct{})}, nil
 }
 
 func (s *Socket) Read(p []byte) (int, error) {
@@ -152,5 +153,15 @@ func (s *Socket) Close() error {
 	s.Write([]byte{0x01, 0x09, 0x10, 0x00}) // no-op command to wake up the Read call if it's blocked
 	s.rmu.Lock()
 	defer s.rmu.Unlock()
-	return errors.Wrap(unix.Close(s.fd), "can't close hci socket")
+	err := unix.Close(s.fd)
+
+	// Bring the adapter back up so BlueZ can re-acquire it.
+	// Closing the HCI User Channel leaves the device down and invisible to
+	// BlueZ D-Bus; an HCIDEVUP ioctl on a fresh raw socket re-registers it.
+	if upFd, e := unix.Socket(unix.AF_BLUETOOTH, unix.SOCK_RAW, unix.BTPROTO_HCI); e == nil {
+		ioctl(uintptr(upFd), hciUpDevice, uintptr(s.id))
+		unix.Close(upFd)
+	}
+
+	return errors.Wrap(err, "can't close hci socket")
 }
