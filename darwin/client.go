@@ -2,6 +2,7 @@ package darwin
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/JuulLabs-OSS/cbgo"
 	"github.com/go-ble/ble"
@@ -18,6 +19,11 @@ type Client struct {
 
 	id   ble.UUID
 	conn *conn
+
+	bindMtx   sync.Mutex
+	bound     chan struct{} // closed while no rebindProfile runs
+	rebinding bool
+	bindAgain bool // a Service Changed arrived during rebindProfile
 }
 
 // NewClient ...
@@ -29,11 +35,13 @@ func NewClient(cm cbgo.CentralManager, c ble.Conn) (*Client, error) {
 	}
 
 	cln := &Client{
-		conn: c.(*conn),
-		pc:   newProfCache(),
-		cm:   cm,
-		id:   id,
+		conn:  c.(*conn),
+		pc:    newProfCache(),
+		cm:    cm,
+		id:    id,
+		bound: make(chan struct{}),
 	}
+	close(cln.bound)
 
 	cln.conn.prph.SetDelegate(cln)
 
@@ -53,7 +61,13 @@ func (cln *Client) Name() string {
 
 // Profile returns the discovered profile.
 func (cln *Client) Profile() *ble.Profile {
-	return cln.profile
+	// rebindPass appends to the service list while callers read it.
+	cln.bindMtx.Lock()
+	defer cln.bindMtx.Unlock()
+	if cln.profile == nil {
+		return nil
+	}
+	return &ble.Profile{Services: append([]*ble.Service(nil), cln.profile.Services...)}
 }
 
 // DiscoverProfile discovers the whole hierarchy of a server.
@@ -77,13 +91,17 @@ func (cln *Client) DiscoverProfile(force bool) (*ble.Profile, error) {
 			}
 		}
 	}
+	cln.bindMtx.Lock()
 	cln.profile = &ble.Profile{Services: ss}
+	cln.bindMtx.Unlock()
 	return cln.profile, nil
 }
 
 // DiscoverServices finds all the primary services on a server. [Vol 3, Part G, 4.4.1]
 // If filter is specified, only filtered services are returned.
 func (cln *Client) DiscoverServices(ss []ble.UUID) ([]*ble.Service, error) {
+	cln.waitBound()
+
 	ch := cln.conn.evl.svcsDiscovered.Listen()
 	defer cln.conn.evl.svcsDiscovered.Close()
 
@@ -108,9 +126,11 @@ func (cln *Client) DiscoverServices(ss []ble.UUID) ([]*ble.Service, error) {
 		cln.pc.addSvc(svc, dsvc)
 		svcs = append(svcs, svc)
 	}
+	cln.bindMtx.Lock()
 	if cln.profile == nil {
 		cln.profile = &ble.Profile{Services: svcs}
 	}
+	cln.bindMtx.Unlock()
 	return svcs, nil
 }
 
@@ -123,6 +143,8 @@ func (cln *Client) DiscoverIncludedServices(ss []ble.UUID, s *ble.Service) ([]*b
 // DiscoverCharacteristics finds all the characteristics within a service. [Vol 3, Part G, 4.6.1]
 // If filter is specified, only filtered characteristics are returned.
 func (cln *Client) DiscoverCharacteristics(cs []ble.UUID, s *ble.Service) ([]*ble.Characteristic, error) {
+	cln.waitBound()
+
 	cbsvc, err := cln.pc.findCbSvc(s)
 	if err != nil {
 		return nil, err
@@ -158,6 +180,8 @@ func (cln *Client) DiscoverCharacteristics(cs []ble.UUID, s *ble.Service) ([]*bl
 // DiscoverDescriptors finds all the descriptors within a characteristic. [Vol 3, Part G, 4.7.1]
 // If filter is specified, only filtered descriptors are returned.
 func (cln *Client) DiscoverDescriptors(ds []ble.UUID, c *ble.Characteristic) ([]*ble.Descriptor, error) {
+	cln.waitBound()
+
 	cbchr, err := cln.pc.findCbChr(c)
 	if err != nil {
 		return nil, err
@@ -193,6 +217,8 @@ func (cln *Client) DiscoverDescriptors(ds []ble.UUID, c *ble.Characteristic) ([]
 
 // ReadCharacteristic reads a characteristic value from a server. [Vol 3, Part G, 4.8.1]
 func (cln *Client) ReadCharacteristic(c *ble.Characteristic) ([]byte, error) {
+	cln.waitBound()
+
 	cbchr, err := cln.pc.findCbChr(c)
 	if err != nil {
 		return nil, err
@@ -228,6 +254,8 @@ func (cln *Client) ReadLongCharacteristic(c *ble.Characteristic) ([]byte, error)
 
 // WriteCharacteristic writes a characteristic value to a server. [Vol 3, Part G, 4.9.3]
 func (cln *Client) WriteCharacteristic(c *ble.Characteristic, b []byte, noRsp bool) error {
+	cln.waitBound()
+
 	cbchr, err := cln.pc.findCbChr(c)
 	if err != nil {
 		return err
@@ -258,6 +286,8 @@ func (cln *Client) WriteCharacteristic(c *ble.Characteristic, b []byte, noRsp bo
 
 // ReadDescriptor reads a characteristic descriptor from a server. [Vol 3, Part G, 4.12.1]
 func (cln *Client) ReadDescriptor(d *ble.Descriptor) ([]byte, error) {
+	cln.waitBound()
+
 	cbdsc, err := cln.pc.findCbDsc(d)
 	if err != nil {
 		return nil, err
@@ -285,6 +315,8 @@ func (cln *Client) ReadDescriptor(d *ble.Descriptor) ([]byte, error) {
 
 // WriteDescriptor writes a characteristic descriptor to a server. [Vol 3, Part G, 4.12.3]
 func (cln *Client) WriteDescriptor(d *ble.Descriptor, b []byte) error {
+	cln.waitBound()
+
 	cbdsc, err := cln.pc.findCbDsc(d)
 	if err != nil {
 		return err
@@ -326,6 +358,8 @@ func (cln *Client) ExchangeMTU(mtu int) (int, error) {
 // Subscribe subscribes to indication (if ind is set true), or notification of a
 // characteristic value. [Vol 3, Part G, 4.10 & 4.11]
 func (cln *Client) Subscribe(c *ble.Characteristic, ind bool, fn ble.NotificationHandler) error {
+	cln.waitBound()
+
 	cbchr, err := cln.pc.findCbChr(c)
 	if err != nil {
 		return err
@@ -356,9 +390,17 @@ func (cln *Client) Subscribe(c *ble.Characteristic, ind bool, fn ble.Notificatio
 // Unsubscribe unsubscribes to indication (if ind is set true), or notification
 // of a specified characteristic value. [Vol 3, Part G, 4.10 & 4.11]
 func (cln *Client) Unsubscribe(c *ble.Characteristic, ind bool) error {
+	cln.waitBound()
+
 	cbchr, err := cln.pc.findCbChr(c)
 	if err != nil {
 		return err
+	}
+
+	// Nothing to stop: no request, so no wait on a notification-state callback.
+	if !cbchr.IsNotifying() {
+		cln.conn.delSub(c)
+		return nil
 	}
 
 	ch := cln.conn.evl.notifyChanged.Listen()
@@ -414,6 +456,222 @@ type sub struct {
 
 func (cln *Client) DidDiscoverServices(prph cbgo.Peripheral, err error) {
 	cln.conn.evl.svcsDiscovered.RxSignal(err)
+}
+
+// DidModifyServices handles a Service Changed indication. A request on an
+// invalidated object gets no callback and would wait until disconnect, so
+// those services leave the cache at once, then rebindProfile restores them.
+func (cln *Client) DidModifyServices(prph cbgo.Peripheral, invSvcs []cbgo.Service) {
+	for _, cbs := range invSvcs {
+		cln.pc.delSvc(cbs)
+	}
+
+	cln.bindMtx.Lock()
+	defer cln.bindMtx.Unlock()
+	if cln.rebinding {
+		cln.bindAgain = true
+		return
+	}
+	cln.rebinding = true
+	cln.bound = make(chan struct{})
+	// Discovery waits on callbacks this delegate thread delivers.
+	go cln.rebindProfile()
+}
+
+// waitBound holds a request back while rebindProfile runs: the request would
+// find no object for an invalidated attribute, or share an event slot with
+// rebindProfile and take its callback.
+func (cln *Client) waitBound() {
+	cln.bindMtx.Lock()
+	bound := cln.bound
+	cln.bindMtx.Unlock()
+
+	select {
+	case <-bound:
+	case <-cln.Disconnected():
+	}
+}
+
+// rebindProfile repeats rebindPass until no Service Changed arrived during the
+// last pass, then releases the requests waitBound holds.
+func (cln *Client) rebindProfile() {
+	for {
+		cln.rebindPass()
+
+		cln.bindMtx.Lock()
+		if !cln.bindAgain {
+			cln.rebinding = false
+			close(cln.bound)
+			cln.bindMtx.Unlock()
+			return
+		}
+		cln.bindAgain = false
+		cln.bindMtx.Unlock()
+	}
+}
+
+// rebindPass binds each profile service that has no CoreBluetooth object -
+// invalidated, or hidden at the previous discovery - to the objects a new
+// discovery returns, matched by UUID and order, and adds to the profile each
+// discovered service it lacks. The ble objects callers hold stay valid. Each service gets its subscriptions back, and a read of each
+// readable one, as soon as its characteristics are bound: notifications sent
+// before that were dropped, so the read delivers the value they carried.
+// Descriptors are bound last; no subscription waits on them.
+func (cln *Client) rebindPass() {
+	if cln.profile == nil {
+		return
+	}
+	if cln.await(&cln.conn.evl.svcsDiscovered, func() { cln.conn.prph.DiscoverServices(nil) }) != nil {
+		return
+	}
+
+	cln.conn.RLock()
+	subscribed := map[*ble.Characteristic]bool{}
+	for _, sb := range cln.conn.subs {
+		subscribed[sb.char] = true
+	}
+	cln.conn.RUnlock()
+
+	type pending struct {
+		c   *ble.Characteristic
+		cbc cbgo.Characteristic
+	}
+	var withDescriptors []pending
+
+	cbsvcs := cln.conn.prph.Services()
+	svcUUIDs := make([]ble.UUID, len(cln.profile.Services))
+	for i, s := range cln.profile.Services {
+		svcUUIDs[i] = s.UUID
+	}
+	for i, s := range cln.profile.Services {
+		if _, err := cln.pc.findCbSvc(s); err == nil {
+			continue
+		}
+		k := nthWithUUID(len(cbsvcs), func(j int) ble.UUID { return ble.UUID(cbsvcs[j].UUID()) }, s.UUID, occurrence(svcUUIDs, i))
+		if k < 0 {
+			continue // still hidden
+		}
+		cbs := cbsvcs[k]
+		cln.pc.addSvc(s, cbs)
+		if cln.await(&cln.conn.evl.chrsDiscovered, func() { cln.conn.prph.DiscoverCharacteristics(nil, cbs) }) != nil {
+			return
+		}
+
+		cbcs := cbs.Characteristics()
+		chrUUIDs := make([]ble.UUID, len(s.Characteristics))
+		for j, c := range s.Characteristics {
+			chrUUIDs[j] = c.UUID
+		}
+		for j, c := range s.Characteristics {
+			k := nthWithUUID(len(cbcs), func(m int) ble.UUID { return ble.UUID(cbcs[m].UUID()) }, c.UUID, occurrence(chrUUIDs, j))
+			if k < 0 {
+				continue
+			}
+			cbc := cbcs[k]
+			cln.pc.addChr(c, cbc)
+			if subscribed[c] {
+				// The handler stays registered whatever the outcome, so a
+				// notification the peripheral still sends keeps its route.
+				cln.await(&cln.conn.evl.notifyChanged, func() { cln.conn.prph.SetNotify(true, cbc) })
+				if c.Property&ble.CharRead != 0 {
+					cln.conn.prph.ReadCharacteristic(cbc)
+				}
+			}
+			if len(c.Descriptors) > 0 {
+				withDescriptors = append(withDescriptors, pending{c, cbc})
+			}
+		}
+	}
+
+	// A service the peripheral hid at the first discovery joins the profile once it appears,
+	// built whole before it is published so a reader of Profile never sees it half-filled.
+	for _, cbs := range cbsvcs {
+		if _, err := cln.pc.findSvc(cbs); err == nil {
+			continue
+		}
+		s := &ble.Service{UUID: ble.UUID(cbs.UUID())}
+		cln.pc.addSvc(s, cbs)
+		if cln.await(&cln.conn.evl.chrsDiscovered, func() { cln.conn.prph.DiscoverCharacteristics(nil, cbs) }) != nil {
+			return
+		}
+		for _, cbc := range cbs.Characteristics() {
+			c := &ble.Characteristic{UUID: ble.UUID(cbc.UUID()), Property: ble.Property(cbc.Properties())}
+			cln.pc.addChr(c, cbc)
+			if cln.await(&cln.conn.evl.dscsDiscovered, func() { cln.conn.prph.DiscoverDescriptors(cbc) }) != nil {
+				return
+			}
+			for _, cbd := range cbc.Descriptors() {
+				d := &ble.Descriptor{UUID: ble.UUID(cbd.UUID())}
+				cln.pc.addDsc(d, cbd)
+				c.Descriptors = append(c.Descriptors, d)
+			}
+			s.Characteristics = append(s.Characteristics, c)
+		}
+		cln.bindMtx.Lock()
+		cln.profile.Services = append(cln.profile.Services, s)
+		cln.bindMtx.Unlock()
+	}
+
+	for _, p := range withDescriptors {
+		cbc := p.cbc
+		if cln.await(&cln.conn.evl.dscsDiscovered, func() { cln.conn.prph.DiscoverDescriptors(cbc) }) != nil {
+			return
+		}
+		cbds := cbc.Descriptors()
+		dscUUIDs := make([]ble.UUID, len(p.c.Descriptors))
+		for m, d := range p.c.Descriptors {
+			dscUUIDs[m] = d.UUID
+		}
+		for m, d := range p.c.Descriptors {
+			if k := nthWithUUID(len(cbds), func(n int) ble.UUID { return ble.UUID(cbds[n].UUID()) }, d.UUID, occurrence(dscUUIDs, m)); k >= 0 {
+				cln.pc.addDsc(d, cbds[k])
+			}
+		}
+	}
+}
+
+// await starts a CoreBluetooth request and waits for the delegate callback it
+// signals on slot.
+func (cln *Client) await(slot *eventSlot, start func()) error {
+	ch := slot.Listen()
+	defer slot.Close()
+
+	start()
+
+	select {
+	case itf := <-ch:
+		if itf != nil {
+			return itf.(error)
+		}
+		return nil
+	case <-cln.Disconnected():
+		return fmt.Errorf("disconnected")
+	}
+}
+
+// occurrence returns how many entries of uuids before index i equal uuids[i].
+func occurrence(uuids []ble.UUID, i int) int {
+	n := 0
+	for _, u := range uuids[:i] {
+		if u.Equal(uuids[i]) {
+			n++
+		}
+	}
+	return n
+}
+
+// nthWithUUID returns the index of the n-th of count entries whose UUID, read
+// by uuidAt, equals u, or -1.
+func nthWithUUID(count int, uuidAt func(int) ble.UUID, u ble.UUID, n int) int {
+	for i := 0; i < count; i++ {
+		if uuidAt(i).Equal(u) {
+			if n == 0 {
+				return i
+			}
+			n--
+		}
+	}
+	return -1
 }
 func (cln *Client) DidDiscoverCharacteristics(prph cbgo.Peripheral, svc cbgo.Service, err error) {
 	cln.conn.evl.chrsDiscovered.RxSignal(err)

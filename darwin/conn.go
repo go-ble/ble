@@ -175,8 +175,9 @@ func (c *conn) processChrRead(err error, cbchr cbgo.Characteristic) {
 		found = true
 	}
 
+	// A failed read carries no value for the subscriber.
 	s := c.subs[uuidStr]
-	if s != nil {
+	if s != nil && err == nil {
 		s.fn(cbchr.Value())
 		found = true
 	}

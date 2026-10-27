@@ -131,3 +131,25 @@ func (pc *profCache) findDsc(cbd cbgo.Descriptor) (*ble.Descriptor, error) {
 
 	return d, nil
 }
+
+// delSvc forgets a service with its characteristics and descriptors.
+func (pc *profCache) delSvc(cbs cbgo.Service) {
+	pc.mtx.Lock()
+	defer pc.mtx.Unlock()
+
+	for cbc, c := range pc.cbChrMap {
+		if cbc.Service() != cbs {
+			continue
+		}
+		for cbd, d := range pc.cbDscMap {
+			if cbd.Characteristic() == cbc {
+				delete(pc.cbDscMap, cbd)
+				delete(pc.dscCbMap, d)
+			}
+		}
+		delete(pc.cbChrMap, cbc)
+		delete(pc.chrCbMap, c)
+	}
+	delete(pc.svcCbMap, pc.cbSvcMap[cbs])
+	delete(pc.cbSvcMap, cbs)
+}
